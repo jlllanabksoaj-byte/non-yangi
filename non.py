@@ -71,7 +71,7 @@ log = logging.getLogger(__name__)
 # Token avval environment variable'dan o'qiladi (Railway/Render uchun xavfsiz);
 # topilmasa, quyidagi qatorga to'g'ridan-to'g'ri yozib qo'yishingiz mumkin
 # (lekin bu holda faylni hech qayerga ochiq joylashtirmang).
-BOT_TOKEN = "8744917299:AAGOZMJwDggIbmOYdLyyumQBS412pl7Zeqk"
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 
 PRODUCTS = [
     "Teleskopik tirgak",
