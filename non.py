@@ -74,7 +74,7 @@ log = logging.getLogger(__name__)
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "PUT_YOUR_BOT_TOKEN_HERE")
 
 PRODUCTS = [
-    "1-Tandir",
+     "1-Tandir",
     "2-Tandir",
     "3-Tandir",
     "4-Tandir",
@@ -182,6 +182,10 @@ def product_keyboard():
     return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
 
+def back_keyboard():
+    return ReplyKeyboardMarkup([["🔙 Orqaga"]], resize_keyboard=True)
+
+
 def main_menu_keyboard(uid: int):
     if uid in OMBORCHI_IDS:
         rows = [["📦 Yuklash"], ["📊 Qoldiqlarni ko'rish"]]
@@ -229,7 +233,7 @@ async def yukla_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def yukla_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["product"] = update.message.text
     kb = ReplyKeyboardMarkup(
-        [[str(a)] for a in AGENT_IDS], one_time_keyboard=True, resize_keyboard=True
+        [[str(a)] for a in AGENT_IDS] + [["🔙 Orqaga"]], resize_keyboard=True
     )
     await update.message.reply_text(
         "Qaysi agentga yuklanadi? (Agent ID'ni tanlang yoki yozing)", reply_markup=kb
@@ -244,7 +248,7 @@ async def yukla_agent(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Noto'g'ri ID, qaytadan kiriting.")
         return LOAD_AGENT
     await update.message.reply_text(
-        "Necha dona?", reply_markup=ReplyKeyboardRemove()
+        "Necha dona?", reply_markup=back_keyboard()
     )
     return LOAD_QTY
 
@@ -306,7 +310,7 @@ async def topshirish_product(update: Update, context: ContextTypes.DEFAULT_TYPE)
     bal = agent_balance(update.effective_user.id, update.message.text)
     await update.message.reply_text(
         f"Qoldig'ingiz: {bal} dona. Necha dona topshirasiz?",
-        reply_markup=ReplyKeyboardRemove(),
+        reply_markup=back_keyboard(),
     )
     return DELIVER_QTY
 
@@ -326,15 +330,17 @@ async def topshirish_qty(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return DELIVER_QTY
 
     context.user_data["qty"] = qty
-    await update.message.reply_text("Mijoz ismi?")
+    await update.message.reply_text("Mijoz ismi?", reply_markup=back_keyboard())
     return DELIVER_CUSTOMER
 
 
 async def topshirish_customer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["customer"] = update.message.text
     loc_btn = ReplyKeyboardMarkup(
-        [[KeyboardButton("📍 Joylashuvni yuborish", request_location=True)]],
-        one_time_keyboard=True,
+        [
+            [KeyboardButton("📍 Joylashuvni yuborish", request_location=True)],
+            ["🔙 Orqaga"],
+        ],
         resize_keyboard=True,
     )
     await update.message.reply_text("Joylashuvni yuboring:", reply_markup=loc_btn)
@@ -349,7 +355,7 @@ async def topshirish_location(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data["lat"] = loc.latitude
     context.user_data["lon"] = loc.longitude
     await update.message.reply_text(
-        "Endi topshirilgan mahsulot rasmini yuboring:", reply_markup=ReplyKeyboardRemove()
+        "Endi topshirilgan mahsulot rasmini yuboring:", reply_markup=back_keyboard()
     )
     return DELIVER_PHOTO
 
@@ -463,8 +469,14 @@ def main():
                 MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, topshirish_customer),
             ],
-            DELIVER_LOCATION: [MessageHandler(filters.LOCATION, topshirish_location)],
-            DELIVER_PHOTO: [MessageHandler(filters.PHOTO, topshirish_photo)],
+            DELIVER_LOCATION: [
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
+                MessageHandler(filters.LOCATION, topshirish_location),
+            ],
+            DELIVER_PHOTO: [
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
+                MessageHandler(filters.PHOTO, topshirish_photo),
+            ],
         },
         fallbacks=[
             CommandHandler("cancel", cancel),
