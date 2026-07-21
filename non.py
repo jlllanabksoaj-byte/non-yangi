@@ -71,7 +71,7 @@ log = logging.getLogger(__name__)
 # Token avval environment variable'dan o'qiladi (Railway/Render uchun xavfsiz);
 # topilmasa, quyidagi qatorga to'g'ridan-to'g'ri yozib qo'yishingiz mumkin
 # (lekin bu holda faylni hech qayerga ochiq joylashtirmang).
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "PUT_YOUR_BOT_TOKEN_HERE")
 
 PRODUCTS = [
     "Teleskopik tirgak",
@@ -178,8 +178,18 @@ def sync_delivery_to_sheet(agent_id, product, qty, customer, lat, lon, photo_fil
 
 
 def product_keyboard():
-    rows = [[p] for p in PRODUCTS]
-    return ReplyKeyboardMarkup(rows, one_time_keyboard=True, resize_keyboard=True)
+    rows = [[p] for p in PRODUCTS] + [["🔙 Orqaga"]]
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True)
+
+
+def main_menu_keyboard(uid: int):
+    if uid in OMBORCHI_IDS:
+        rows = [["📦 Yuklash"], ["📊 Qoldiqlarni ko'rish"]]
+    elif uid in AGENT_IDS:
+        rows = [["🚚 Topshirish"], ["📊 Qoldiq"]]
+    else:
+        rows = []
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True) if rows else ReplyKeyboardRemove()
 
 
 # ---------------- UMUMIY ----------------
@@ -187,20 +197,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     log.info("user_id: %s", uid)
     if uid in OMBORCHI_IDS:
-        await update.message.reply_text(
-            "Salom, omborchi! Yuklash uchun /yukla buyrug'ini yuboring."
-        )
+        text = "Salom, omborchi! Quyidagi menyudan foydalaning:"
     elif uid in AGENT_IDS:
-        await update.message.reply_text(
-            "Salom, agent! Topshirish uchun /topshirish buyrug'ini yuboring.\n"
-            "Qoldig'ingizni ko'rish uchun /qoldiq."
-        )
+        text = "Salom, agent! Quyidagi menyudan foydalaning:"
     else:
-        await update.message.reply_text(
+        text = (
             f"Salom! Sizning ID: {uid}\n"
             "Bu bot faqat ro'yxatdan o'tgan omborchi va agentlar uchun. "
             "Administratorga ID'ingizni yuboring."
         )
+    await update.message.reply_text(text, reply_markup=main_menu_keyboard(uid))
 
 
 async def qoldiq(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -398,33 +404,72 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
+    await update.message.reply_text(
+        "Bosh menyu:", reply_markup=main_menu_keyboard(update.effective_user.id)
+    )
+    return ConversationHandler.END
+
+
 # ---------------- ISHGA TUSHIRISH ----------------
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("qoldiq", qoldiq))
+    app.add_handler(MessageHandler(filters.Regex("^📊"), qoldiq))
 
     app.add_handler(ConversationHandler(
-        entry_points=[CommandHandler("yukla", yukla_start)],
+        entry_points=[
+            CommandHandler("yukla", yukla_start),
+            MessageHandler(filters.Regex("^📦 Yuklash$"), yukla_start),
+        ],
         states={
-            LOAD_PRODUCT: [MessageHandler(filters.TEXT & ~filters.COMMAND, yukla_product)],
-            LOAD_AGENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, yukla_agent)],
-            LOAD_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, yukla_qty)],
+            LOAD_PRODUCT: [
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, yukla_product),
+            ],
+            LOAD_AGENT: [
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, yukla_agent),
+            ],
+            LOAD_QTY: [
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, yukla_qty),
+            ],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
+        ],
     ))
 
     app.add_handler(ConversationHandler(
-        entry_points=[CommandHandler("topshirish", topshirish_start)],
+        entry_points=[
+            CommandHandler("topshirish", topshirish_start),
+            MessageHandler(filters.Regex("^🚚 Topshirish$"), topshirish_start),
+        ],
         states={
-            DELIVER_PRODUCT: [MessageHandler(filters.TEXT & ~filters.COMMAND, topshirish_product)],
-            DELIVER_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, topshirish_qty)],
-            DELIVER_CUSTOMER: [MessageHandler(filters.TEXT & ~filters.COMMAND, topshirish_customer)],
+            DELIVER_PRODUCT: [
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topshirish_product),
+            ],
+            DELIVER_QTY: [
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topshirish_qty),
+            ],
+            DELIVER_CUSTOMER: [
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topshirish_customer),
+            ],
             DELIVER_LOCATION: [MessageHandler(filters.LOCATION, topshirish_location)],
             DELIVER_PHOTO: [MessageHandler(filters.PHOTO, topshirish_photo)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            MessageHandler(filters.Regex("^🔙 Orqaga$"), back_to_menu),
+        ],
     ))
 
     log.info("Bot ishga tushdi...")
