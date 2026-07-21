@@ -74,11 +74,11 @@ log = logging.getLogger(__name__)
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "PUT_YOUR_BOT_TOKEN_HERE")
 
 PRODUCTS = [
-    "Teleskopik tirgak",
-    "Skaffolding (angar)",
-    "Opalubka",
-    "Sterjen (tie rod)",
-    "Boshqa",
+    "1-Tandir",
+    "2-Tandir",
+    "3-Tandir",
+    "4-Tandir",
+    "5-Tandir",
 ]
 
 # Bu yerga haqiqiy Telegram user_id'larni kiriting
